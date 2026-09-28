@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 300">
+<rect width="600" height="300" rx="30" fill="#f2f4f7"/>
+<rect x="105" y="75" width="390" height="150" rx="20" fill="#25364d"/>
+<circle cx="155" cy="125" r="12" fill="#61d095"/><circle cx="195" cy="125" r="12" fill="#61d095"/><circle cx="235" cy="125" r="12" fill="#61d095"/>
+<rect x="145" y="160" width="300" height="25" rx="8" fill="#5d7187"/>
+<text x="300" y="265" text-anchor="middle" font-family="Arial" font-size="30" font-weight="700" fill="#17324d">OLT • +7 dBm</text>
+</svg>

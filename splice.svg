@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 300">
+<rect width="600" height="300" rx="30" fill="#f8f4ff"/>
+<path d="M45 150 H235" stroke="#25364d" stroke-width="20" stroke-linecap="round"/>
+<rect x="220" y="112" width="160" height="76" rx="38" fill="#7b61ff"/>
+<path d="M365 150 H555" stroke="#25364d" stroke-width="20" stroke-linecap="round"/>
+<line x1="300" y1="122" x2="300" y2="178" stroke="#fff" stroke-width="7"/>
+<text x="300" y="265" text-anchor="middle" font-family="Arial" font-size="30" font-weight="700" fill="#17324d">SPLICE</text>
+</svg>

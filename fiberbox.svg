@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 300">
+<rect width="600" height="300" rx="30" fill="#f3f8f9"/>
+<rect x="175" y="55" width="250" height="185" rx="15" fill="#d6dee5" stroke="#617282" stroke-width="8"/>
+<path d="M210 100 C270 55 330 245 390 100 M210 135 C270 90 330 280 390 135 M210 170 C270 125 330 315 390 170" fill="none" stroke="#1d8f9b" stroke-width="8"/>
+<text x="300" y="275" text-anchor="middle" font-family="Arial" font-size="30" font-weight="700" fill="#17324d">FIBER BOX</text>
+</svg>

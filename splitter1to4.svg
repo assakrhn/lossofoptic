@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 300">
+<rect width="600" height="300" rx="30" fill="#fff7e8"/>
+<path d="M55 150 H210" stroke="#25364d" stroke-width="18" stroke-linecap="round"/>
+<rect x="195" y="95" width="115" height="110" rx="18" fill="#e39b18"/>
+<path d="M310 125 C400 85 455 75 550 65 M310 142 C400 125 455 120 550 115 M310 158 C400 175 455 180 550 185 M310 175 C400 215 455 225 550 235" fill="none" stroke="#25364d" stroke-width="10" stroke-linecap="round"/>
+<text x="252" y="160" text-anchor="middle" font-family="Arial" font-size="24" font-weight="700" fill="#fff">1:4</text>
+<text x="300" y="275" text-anchor="middle" font-family="Arial" font-size="30" font-weight="700" fill="#17324d">SPLITTER</text>
+</svg>

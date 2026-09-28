@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 300">
+<rect width="600" height="300" rx="30" fill="#eef6ff"/>
+<path d="M60 150 C160 70 250 230 350 150 S500 70 540 150" fill="none" stroke="#243b53" stroke-width="24" stroke-linecap="round"/>
+<path d="M60 150 C160 70 250 230 350 150 S500 70 540 150" fill="none" stroke="#58a6ff" stroke-width="12" stroke-linecap="round"/>
+<text x="300" y="265" text-anchor="middle" font-family="Arial" font-size="30" font-weight="700" fill="#17324d">KABEL FIBER</text>
+</svg>
