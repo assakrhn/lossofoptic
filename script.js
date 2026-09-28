@@ -166,19 +166,32 @@ function l2View(app) {
 /* ---------- LEVEL 3 ---------- */
 var L3 = [{ img: 'level3-konektor.png', n: 2 }, { img: '32.png', n: 4 }, { img: '33.png', n: 6 }];
 function l3View(app) {
-  var i = G.q3i | 0, q = L3[i], loss = r3(q.n * CONN), st = G.q3s | 0;
-  var body = st
-    ? '<div class="facts"><div class="fact"><small>Jumlah konektor</small><b>' + q.n + '</b></div><div class="fact"><small>Loss per konektor</small><b>0,25 dB</b></div></div><div class="formula">Loss = jumlah konektor × 0,25 dB</div><p>Berapa total loss konektor (dB)?</p>' + ansRow('dB')
-    : '<img src="assets/' + q.img + '" alt="Soal konektor ' + (i + 1) + '"><p>Berapa jumlah konektor (1 core)?</p>' + ansRow('buah');
-  app.innerHTML = '<div class="card lvl3"><h2>LEVEL 3 — HITUNG KONEKTOR</h2><p class="sub">Soal ' + (i + 1) + ' dari ' + L3.length + ' · ' + (st ? 'Langkah 2: hitung total loss.' : 'Langkah 1: hitung seluruh konektor biru untuk <b>1 core</b> saja.') + '</p>' + body + '</div>';
-  if (!st) {
-    bindAnswer(q.n, 'Benar! Jumlah konektor = ' + q.n + '.', 'Belum tepat. Hitung konektor biru untuk 1 core saja.', function () { G.q3s = 1; save(); render(); });
-  } else {
-    bindAnswer(loss, 'Benar! Loss = ' + q.n + ' × 0,25 = ' + fmt(loss) + ' dB.', 'Belum tepat. Kalikan jumlah konektor dengan 0,25 dB.', function () {
-      G.connectorCount = (G.connectorCount | 0) + q.n; G.connectorLoss = r3((G.connectorLoss || 0) + loss); G.q3i = i + 1; G.q3s = 0;
+  var i = G.q3i | 0, q = L3[i], loss = r3(q.n * CONN);
+  var dots = L3.map(function (x, k) { return '<li class="' + (k < i ? 'done' : k === i ? 'cur' : '') + '">' + (k < i ? '✓ ' : '') + 'Soal ' + (k + 1) + '</li>'; }).join('');
+  app.innerHTML = '<div class="card lvl3"><h2>LEVEL 3 — HITUNG KONEKTOR</h2><ol class="qprog">' + dots + '</ol>' +
+    '<p class="sub">Soal ' + (i + 1) + ' dari ' + L3.length + ' · Hitung seluruh konektor biru untuk <b>1 core</b> saja, lalu hitung total loss-nya (loss per konektor = 0,25 dB).</p>' +
+    '<img src="assets/' + q.img + '" alt="Soal konektor ' + (i + 1) + '">' +
+    '<div class="two"><div><label for="ans">Jumlah konektor</label><input id="ans" inputmode="numeric" autocomplete="off" placeholder="buah"></div>' +
+    '<div><label for="ans2">Total loss</label><input id="ans2" inputmode="decimal" autocomplete="off" placeholder="dB"></div></div>' +
+    '<button id="chk" type="button">PERIKSA</button><div class="fb" id="fb"></div></div>';
+  var a = $('#ans'), b = $('#ans2'), fb = $('#fb'), btn = $('#chk');
+  var go = function () {
+    if (busy) return;
+    var v1 = num(a.value), v2 = num(b.value);
+    var bad = function (m, el) { fb.className = 'fb bad'; fb.textContent = '✗ ' + m; fx(fb, 'shake'); fx(el, 'shake'); };
+    if (isNaN(v1) || isNaN(v2)) return bad('Isi jumlah konektor dan total loss terlebih dahulu.', isNaN(v1) ? a : b);
+    var ok1 = Math.abs(v1 - q.n) <= 0.001, ok2 = Math.abs(v2 - loss) <= 0.001;
+    a.classList.toggle('okin', ok1); b.classList.toggle('okin', ok2);
+    if (!ok1) return bad('Belum tepat. Hitung konektor biru untuk 1 core saja.', a);
+    if (!ok2) return bad('Jumlah konektor sudah benar, tetapi total loss belum tepat. Kalikan jumlah konektor dengan 0,25 dB.', b);
+    fb.className = 'fb ok'; fb.textContent = '✓ Benar! ' + q.n + ' konektor × 0,25 = ' + fmt(loss) + ' dB.';
+    busy = true; btn.disabled = a.disabled = b.disabled = true; confetti(18);
+    setTimeout(function () {
+      G.connectorCount = (G.connectorCount | 0) + q.n; G.connectorLoss = r3((G.connectorLoss || 0) + loss); G.q3i = i + 1;
       if (G.q3i >= L3.length) G.step = 4; save(); render();
-    });
-  }
+    }, 1200);
+  };
+  btn.onclick = go; a.onkeydown = b.onkeydown = function (e) { if (e.key === 'Enter') go(); }; a.focus();
 }
 
 /* ---------- LEVEL 4 ---------- */
