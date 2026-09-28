@@ -1,203 +1,213 @@
-const state={
- level:1, matchAttempt:1, matchSolved:false, selectedLeft:null, selectedRight:null,
- results:{matchAttempts:0,cableLoss:0,connectorCount:22,connectorLoss:5.5,splitterLoss:0,rx:0,score:0},
- attenSet:[], attenIndex:0, decimalDone:false, splitterQuestion:null
-};
+(function () {
+'use strict';
+var KS = 'ftthLossChallengeStudent', KG = 'ftthLossChallengeGame';
+var ATT = 0.35, CONN = 0.25, TX = 7;
+var $ = function (s) { return document.querySelector(s); };
+var rnd = function (a) { return a[Math.floor(Math.random() * a.length)]; };
+var shuf = function (a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; };
+var r3 = function (n) { return Math.round(n * 1000) / 1000; };
+var fmt = function (n, d) { return (+n).toFixed(d === undefined ? 2 : d).replace('.', ','); };
+var esc = function (s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
+var num = function (v) { v = String(v).trim(); return /^[+-]?\d+([.,]\d+)?$/.test(v) ? parseFloat(v.replace(',', '.')) : NaN; };
+function load(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
+function store(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+function del(k) { try { localStorage.removeItem(k); } catch (e) {} }
 
-const $=id=>document.getElementById(id);
-const attenQuestions=[
- ["Jakarta → Bandung", 150],["Bandung → Cirebon", 120],["Cirebon → Tegal", 140],
- ["Semarang → Solo", 110],["Solo → Yogyakarta", 70],["Yogyakarta → Magelang", 80],
- ["Surabaya → Malang", 90],["Malang → Kediri", 100],["Jakarta → Cirebon", 220],["Surabaya → Jember", 200]
+var PAIRS = [
+  { id: 'cable', img: 'cable.svg', label: 'Atenuasi / panjang kabel', val: '0,35 dB/km' },
+  { id: 'splice', img: 'splice.svg', label: 'Splice', val: '0,1 dB' },
+  { id: 'conn', img: 'connector.svg', label: 'Konektor', val: '0,25 dB' },
+  { id: 's8', img: 'splitter1to8.svg', label: 'Splitter 1:8', val: '10,5 dB' },
+  { id: 's4', img: 'splitter1to4.svg', label: 'Splitter 1:4', val: '7,2 dB' },
+  { id: 'olt', img: 'olt.svg', label: 'Output OLT', val: '+7 dBm' }
 ];
-const decimalQuestions=[
- ["Jakarta → Bogor",127.5],["Bandung → Sumedang",82.5],["Semarang → Demak",62.5]
-];
-const splitterQuestions=[
- {olt:7, ratio:"1:8", loss:10.5},
- {olt:7, ratio:"1:4", loss:7.2},
- {olt:7, ratio:"1:8", loss:10.5}
-];
+var EVEN = [['Jakarta', 'Bandung', 150], ['Bandung', 'Cirebon', 120], ['Cirebon', 'Tegal', 140], ['Semarang', 'Solo', 110], ['Solo', 'Yogyakarta', 70], ['Yogyakarta', 'Magelang', 80], ['Surabaya', 'Malang', 90], ['Malang', 'Kediri', 100], ['Jakarta', 'Cirebon', 220], ['Surabaya', 'Jember', 200]];
+var DEC = [['Jakarta', 'Bogor', 127.5], ['Bandung', 'Sumedang', 82.5], ['Semarang', 'Demak', 62.5]];
+var L4 = [{ ratio: '1:8', loss: 10.5 }, { ratio: '1:4', loss: 7.2 }, { ratio: '1:8', loss: 10.5 }];
+var STEPS = ['LEVEL 1', 'LEVEL 2', 'LEVEL 3', 'LEVEL 4', 'FINAL'];
 
-function shuffle(a){return [...a].sort(()=>Math.random()-.5)}
-function updateProgress(){
- const done=state.level-1;
- $("progressText").textContent=`${done} / 5`;
- $("progressBar").style.width=`${done/5*100}%`;
- document.querySelectorAll("#levelNav button").forEach((b,i)=>{
-   b.classList.toggle("active",i+1===state.level);
-   b.classList.toggle("done",i+1<state.level);
-   b.disabled=i+1>state.level;
- });
+var S = load(KS), G = null, L1 = null, busy = false;
+if (!S || !S.className || !S.fullName || S.fullName.trim().split(/\s+/).length < 2) S = null;
+if (S) { G = load(KG); if (!validGame(G)) G = newGame(); }
+
+function validGame(g) { return g && g.owner === (S && S.fullName + '|' + S.className) && g.step >= 1 && g.step <= 6 && Array.isArray(g.q) && g.q.length === 4; }
+function newGame() {
+  var q = shuf(EVEN).slice(0, 3).concat([rnd(DEC)]);
+  return { owner: S.fullName + '|' + S.className, step: 1, attempts: 1, matchAttempts: 0, q: q, qi: 0, cableLoss: 0, connectorCount: 0, connectorLoss: 0, l4: rnd(L4), splitterRatio: '', splitterLoss: 0, totalLoss: 0, rx: 0, score: 0, completed: false };
 }
-function showLevel(n){
- state.level=n;
- document.querySelectorAll(".level").forEach(x=>x.classList.add("hidden"));
- if(n<=5)$("level"+n).classList.remove("hidden");
- updateProgress();
+function save() { store(KG, G); }
+
+function render() {
+  busy = false;
+  var top = $('#top'), app = $('#app');
+  if (!S) { top.hidden = true; return loginView(app); }
+  top.hidden = false;
+  $('#hName').textContent = S.fullName; $('#hClass').textContent = 'Kelas: ' + S.className;
+  $('#prog').innerHTML = STEPS.map(function (s, i) {
+    var c = G.step > i + 1 ? 'done' : G.step === i + 1 ? 'cur' : '';
+    return '<li class="' + c + '">' + (c === 'done' ? '✓ ' : '') + s + '</li>';
+  }).join('');
+  window.scrollTo(0, 0);
+  [null, l1View, l2View, l3View, l4View, finalView, resultView][G.step](app);
 }
-function makeMatch(){
- const pairs=[
-  {id:"cable1",img:"assets/cable.svg",label:"Atenuasi kabel",value:"0,35 dB/km",group:"cable"},
-  {id:"cable2",img:"assets/fiberbox.svg",label:"Atenuasi kabel",value:"0,35 dB/km",group:"cable"},
-  {id:"splice1",img:"assets/splice.svg",label:"Splice",value:"0,1 dB",group:"splice"},
-  {id:"connector1",img:"assets/connector.svg",label:"Konektor",value:"0,25 dB",group:"connector"},
-  {id:"connector2",img:"assets/connector.svg",label:"Konektor",value:"0,25 dB",group:"connector"},
-  {id:"splitter8",img:"assets/splitter1to8.svg",label:"Splitter 1:8",value:"1:8",group:"splitter8"},
-  {id:"splitter4",img:"assets/splitter1to4.svg",label:"Splitter 1:4",value:"1:4",group:"splitter4"},
-  {id:"olt",img:"assets/olt.svg",label:"Output OLT",value:"+7 dB",group:"olt"}
- ];
- const left=shuffle(pairs);
- const right=shuffle(pairs.map(p=>({id:p.id,value:p.value})));
- $("matchingBoard").innerHTML=`
- <div class="match-col" id="leftCards">${left.map(p=>`<div class="match-card left" data-id="${p.id}"><img src="${p.img}" alt=""><span>${p.label}</span></div>`).join("")}</div>
- <div class="match-col" id="rightCards">${right.map(p=>`<div class="match-card right" data-id="${p.id}"><span class="value-card">${p.value}</span></div>`).join("")}</div>`;
- document.querySelectorAll(".left").forEach(c=>c.onclick=()=>selectSide(c,"left"));
- document.querySelectorAll(".right").forEach(c=>c.onclick=()=>selectSide(c,"right"));
+
+function loginView(app) {
+  app.innerHTML = '<div class="card"><h1>FTTH LOSS CHALLENGE</h1><p class="sub">Mission Individual — Link Budget Fiber Optic</p>' +
+    '<label for="cls">KELAS</label><input id="cls" placeholder="contoh: XI TEL 1" autocomplete="off">' +
+    '<label for="nm">NAMA LENGKAP</label><input id="nm" placeholder="contoh: Assa Rohana" autocomplete="off">' +
+    '<div class="fb" id="fb"></div><p><button id="go" type="button">MASUK &amp; MULAI</button></p></div>';
+  var go = function () {
+    var c = $('#cls').value.trim().replace(/\s+/g, ' '), n = $('#nm').value.trim().replace(/\s+/g, ' '), fb = $('#fb');
+    fb.className = 'fb bad';
+    if (!c) return fb.textContent = 'Kelas wajib diisi.';
+    if (!n) return fb.textContent = 'Nama lengkap wajib diisi.';
+    if (n.split(' ').length < 2) return fb.textContent = 'Tulis nama lengkap (minimal 2 kata).';
+    S = { className: c, fullName: n, loginAt: new Date().toISOString() };
+    store(KS, S); G = newGame(); save(); render();
+  };
+  $('#go').onclick = go;
+  app.onkeydown = function (e) { if (e.key === 'Enter') go(); };
 }
-function selectSide(card,side){
- document.querySelectorAll("."+side).forEach(c=>c.classList.remove("selected"));
- card.classList.add("selected");
- if(side==="left")state.selectedLeft=card;else state.selectedRight=card;
- if(state.selectedLeft&&state.selectedRight){
-   state.selectedLeft.dataset.match=state.selectedRight.dataset.id;
- }
+
+/* ---------- LEVEL 1 ---------- */
+function l1View(app) {
+  L1 = { order: shuf(PAIRS.map(function (p) { return p.id; })), torder: shuf(PAIRS.map(function (p) { return p.id; })), placed: {}, locked: {}, wrong: {}, sel: null, msg: '', cls: '' };
+  app.onkeydown = null; drawL1(app);
 }
-$("checkMatch").onclick=()=>{
- const left=[...document.querySelectorAll(".left")];
- let all=true;
- left.forEach(c=>{
-   const rightId=c.dataset.match;
-   const ok=rightId&&rightId===c.dataset.id;
-   c.classList.toggle("correct",ok); c.classList.toggle("wrong",!ok);
-   if(!ok)all=false;
- });
- state.matchAttempt++;
- if(all){
-   state.matchSolved=true; state.results.matchAttempts=state.matchAttempt-1;
-   $("matchFeedback").textContent=`Semua pasangan benar dalam ${state.results.matchAttempts} percobaan.`;
-   $("matchFeedback").className="feedback good";
-   $("checkMatch").disabled=true;
-   setTimeout(()=>{showLevel(2);startAttenuation()},700);
- }else{
-   $("matchFeedback").textContent="Belum semua benar. Perbaiki pasangan yang salah dan coba lagi.";
-   $("matchFeedback").className="feedback bad";
-   $("matchAttempt").textContent=state.matchAttempt;
-   state.selectedLeft=null;state.selectedRight=null;
-   left.forEach(c=>delete c.dataset.match);
-   document.querySelectorAll(".right").forEach(c=>c.classList.remove("selected"));
- }
+function pcard(id) {
+  var p = PAIRS.filter(function (x) { return x.id === id; })[0], lk = L1.locked[id];
+  return '<div class="pc' + (L1.sel === id ? ' sel' : '') + (lk ? ' lk' : '') + '" data-c="' + id + '" draggable="' + !lk + '"><img src="assets/' + p.img + '" alt="' + p.label + '"><span>' + p.label + '</span></div>';
+}
+function drawL1(app) {
+  app = app || $('#app');
+  var tOf = {}; for (var c in L1.placed) tOf[L1.placed[c]] = c;
+  var pool = L1.order.filter(function (c) { return !L1.placed[c]; });
+  var tg = L1.torder.map(function (t) {
+    var p = PAIRS.filter(function (x) { return x.id === t; })[0];
+    return '<div class="tgt' + (L1.wrong[t] ? ' bad' : '') + '" data-t="' + t + '"><b>' + p.val + '</b><div class="slot">' + (tOf[t] ? pcard(tOf[t]) : 'Taruh gambar di sini') + '</div></div>';
+  }).join('');
+  app.innerHTML = '<div class="card"><h2>LEVEL 1 — Cocokkan Jenis Loss</h2>' +
+    '<p class="sub">Seret gambar ke nilai yang sesuai. Di HP: ketuk gambar, lalu ketuk kotak nilainya.</p>' +
+    '<div class="l1"><div><div class="zone" id="pool">' + (pool.length ? pool.map(pcard).join('') : '<em>Semua gambar sudah ditempatkan.</em>') + '</div></div><div>' + tg + '</div></div>' +
+    '<div class="tools"><button id="chk" type="button">PERIKSA PASANGAN</button><span class="att">Percobaan: ' + G.attempts + '</span></div>' +
+    '<div class="fb ' + L1.cls + '" id="fb">' + L1.msg + '</div></div>';
+  app.querySelectorAll('.pc').forEach(function (el) {
+    var id = el.dataset.c; if (L1.locked[id]) return;
+    el.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text/plain', id); e.dataTransfer.effectAllowed = 'move'; });
+    el.addEventListener('click', function (e) { e.stopPropagation(); L1.sel = L1.sel === id ? null : id; drawL1(); });
+  });
+  app.querySelectorAll('.tgt').forEach(function (el) {
+    var t = el.dataset.t;
+    el.addEventListener('dragover', function (e) { e.preventDefault(); el.classList.add('over'); });
+    el.addEventListener('dragleave', function () { el.classList.remove('over'); });
+    el.addEventListener('drop', function (e) { e.preventDefault(); var id = e.dataTransfer.getData('text/plain'); if (id) place(id, t); });
+    el.addEventListener('click', function () { if (L1.sel) place(L1.sel, t); });
+  });
+  var pl = $('#pool');
+  pl.addEventListener('dragover', function (e) { e.preventDefault(); });
+  pl.addEventListener('drop', function (e) { e.preventDefault(); unplace(e.dataTransfer.getData('text/plain')); });
+  pl.addEventListener('click', function () { if (L1.sel) unplace(L1.sel); });
+  $('#chk').onclick = checkL1;
+}
+function place(c, t) {
+  if (L1.locked[c]) return;
+  var occ = null; for (var k in L1.placed) if (L1.placed[k] === t) occ = k;
+  if (occ && L1.locked[occ]) return;
+  if (occ) delete L1.placed[occ];
+  L1.placed[c] = t; L1.sel = null; L1.wrong = {}; L1.msg = ''; L1.cls = ''; drawL1();
+}
+function unplace(c) { if (!c || L1.locked[c]) return; delete L1.placed[c]; L1.sel = null; L1.wrong = {}; L1.msg = ''; L1.cls = ''; drawL1(); }
+function checkL1() {
+  if (busy) return;
+  if (Object.keys(L1.placed).length < PAIRS.length) { L1.msg = 'Tempatkan semua gambar terlebih dahulu.'; L1.cls = 'bad'; return drawL1(); }
+  var bad = [];
+  L1.order.forEach(function (c) {
+    if (L1.locked[c]) return;
+    if (L1.placed[c] === c) L1.locked[c] = true; else { bad.push(L1.placed[c]); delete L1.placed[c]; }
+  });
+  L1.sel = null;
+  if (!bad.length) {
+    G.matchAttempts = G.attempts; G.step = 2; save(); busy = true;
+    L1.msg = '✓ Semua pasangan benar dalam ' + G.attempts + ' percobaan.'; L1.cls = 'ok'; drawL1();
+    setTimeout(render, 1600);
+  } else {
+    G.attempts++; save(); bad.forEach(function (t) { L1.wrong[t] = true; });
+    L1.msg = '✗ Ada pasangan yang belum tepat (kotak merah). Perbaiki lalu periksa lagi.'; L1.cls = 'bad'; drawL1();
+  }
+}
+
+/* ---------- ANSWER HELPER ---------- */
+function bindAnswer(exp, okMsg, badMsg, next) {
+  var inp = $('#ans'), fb = $('#fb'), btn = $('#chk');
+  var go = function () {
+    if (busy) return;
+    var v = num(inp.value);
+    if (isNaN(v)) { fb.className = 'fb bad'; fb.textContent = 'Masukkan angka terlebih dahulu.'; return; }
+    if (Math.abs(v - exp) <= 0.001) {
+      fb.className = 'fb ok'; fb.textContent = '✓ ' + okMsg; busy = true; btn.disabled = inp.disabled = true; setTimeout(next, 1200);
+    } else { fb.className = 'fb bad'; fb.textContent = '✗ ' + badMsg; }
+  };
+  btn.onclick = go; inp.onkeydown = function (e) { if (e.key === 'Enter') go(); }; inp.focus();
+}
+var ansRow = function (unit) { return '<div class="row"><input id="ans" inputmode="decimal" autocomplete="off" placeholder="Jawaban (' + unit + ')"><button id="chk" type="button">PERIKSA</button></div><div class="fb" id="fb"></div>'; };
+
+/* ---------- LEVEL 2 ---------- */
+function l2View(app) {
+  var q = G.q[G.qi], exp = r3(ATT * q[2]), dec = G.qi === 3;
+  app.innerHTML = '<div class="card"><h2>LEVEL 2 — ATENUASI KABEL</h2><p class="sub">Soal ' + (G.qi + 1) + ' dari 4' + (dec ? ' (bilangan desimal)' : '') + '</p>' +
+    '<div class="facts"><div class="fact"><small>Rute</small><b>' + q[0] + ' → ' + q[1] + '</b></div><div class="fact"><small>Jarak</small><b>' + fmt(q[2], dec ? 1 : 0) + ' km</b></div><div class="fact"><small>Atenuasi</small><b>0,35 dB/km</b></div></div>' +
+    '<div class="formula">Loss = 0,35 × jarak</div><p>Berapa loss kabel dari ' + q[0] + ' ke ' + q[1] + '?</p>' + ansRow('dB') + '</div>';
+  bindAnswer(exp, 'Benar! Loss = ' + fmt(exp, 3) + ' dB.', 'Belum tepat. Hitung 0,35 × ' + fmt(q[2], dec ? 1 : 0) + ' lalu coba lagi.', function () {
+    G.cableLoss = r3(G.cableLoss + exp); G.qi++;
+    if (G.qi >= 4) G.step = 3; save(); render();
+  });
+}
+
+/* ---------- LEVEL 3 ---------- */
+function l3View(app) {
+  app.innerHTML = '<div class="card lvl3"><h2>LEVEL 3 — HITUNG KONEKTOR</h2><p class="sub">Perhatikan gambar berikut. Hitung seluruh konektor biru yang terlihat pada jalur tersebut.</p>' +
+    '<img src="assets/level3-konektor.png" alt="Jalur OLS - OTB - Closure - OTB - OPM"><p>Berapa jumlah konektor?</p>' + ansRow('buah') + '</div>';
+  bindAnswer(22, 'Benar! Jumlah konektor = 22. Connector loss = 22 × 0,25 = 5,5 dB.', 'Belum tepat. Hitung seluruh konektor biru pada kedua box.', function () {
+    G.connectorCount = 22; G.connectorLoss = 5.5; G.step = 4; save(); render();
+  });
+}
+
+/* ---------- LEVEL 4 ---------- */
+function l4View(app) {
+  var q = G.l4, exp = r3(TX - q.loss);
+  app.innerHTML = '<div class="card"><h2>LEVEL 4 — SPLITTER + OLT</h2><p class="sub">Hitung daya setelah melewati splitter.</p>' +
+    '<div class="facts"><div class="fact"><small>Output OLT</small><b>+7 dBm</b></div><div class="fact"><small>Splitter</small><b>' + q.ratio + '</b></div><div class="fact"><small>Splitter loss</small><b>' + fmt(q.loss, 1) + ' dB</b></div></div>' +
+    '<div class="formula">Power after splitter = Output OLT − Splitter Loss</div><p>Berapa daya setelah melewati splitter?</p>' + ansRow('dBm') + '</div>';
+  bindAnswer(exp, 'Benar! Daya setelah splitter = ' + fmt(exp, 1) + ' dBm.', 'Belum tepat. Kurangi Output OLT dengan splitter loss.', function () {
+    G.splitterRatio = q.ratio; G.splitterLoss = q.loss; G.step = 5; save(); render();
+  });
+}
+
+/* ---------- FINAL ---------- */
+function finalView(app) {
+  var total = r3(G.cableLoss + G.connectorLoss + G.splitterLoss), rx = r3(TX - total);
+  app.innerHTML = '<div class="card"><h2>FINAL CHALLENGE — LINK BUDGET</h2><p class="sub">Gunakan data yang sudah kamu peroleh.</p>' +
+    '<div class="facts"><div class="fact"><small>Output OLT</small><b>+7 dBm</b></div><div class="fact"><small>Cable Loss</small><b>' + fmt(G.cableLoss, 3) + ' dB</b></div><div class="fact"><small>Connector Loss</small><b>' + fmt(G.connectorLoss) + ' dB</b></div><div class="fact"><small>Splitter Loss</small><b>' + fmt(G.splitterLoss, 1) + ' dB</b></div></div>' +
+    '<div class="formula">Total Loss = Cable + Connector + Splitter<br>Rx = Tx − Total Loss</div><p>Berapa daya yang diterima (Rx)?</p>' + ansRow('dBm') + '</div>';
+  bindAnswer(rx, 'MISSION COMPLETE!', 'Belum tepat. Jumlahkan semua loss, lalu kurangkan dari +7 dBm.', function () {
+    G.totalLoss = total; G.rx = rx; G.score = Math.max(60, 100 - 5 * (G.matchAttempts - 1)); G.completed = true; G.step = 6; save(); render();
+  });
+}
+
+/* ---------- RESULT ---------- */
+function resultView(app) {
+  var cell = function (t, b, w) { return '<div' + (w ? ' class="wide"' : '') + '><small>' + t + '</small>' + b + '</div>'; };
+  app.innerHTML = '<div class="card res"><div class="sub">FTTH LOSS CHALLENGE — HASIL SISWA</div><h1>MISSION COMPLETE</h1><div class="grid">' +
+    cell('Kelas', esc(S.className)) + cell('Nama', esc(S.fullName)) +
+    cell('Level 1', G.matchAttempts + ' percobaan') + cell('Level 2', '4 soal selesai<br>Cable Loss: ' + fmt(G.cableLoss, 3) + ' dB') +
+    cell('Level 3', G.connectorCount + ' konektor<br>Connector Loss: ' + fmt(G.connectorLoss) + ' dB') + cell('Level 4', 'Splitter ' + G.splitterRatio + '<br>Splitter Loss: ' + fmt(G.splitterLoss) + ' dB') +
+    cell('FINAL', 'Total Loss: ' + fmt(G.totalLoss, 3) + ' dB &nbsp; | &nbsp; Rx: ' + fmt(G.rx, 3) + ' dBm', true) + '</div>' +
+    '<div class="score">SKOR: ' + G.score + ' / 100</div><div class="note">Screenshot halaman ini untuk dikumpulkan kepada guru.</div></div>';
+}
+
+$('#switchBtn').onclick = function () {
+  if (!confirm('Ganti siswa? Data login dan progres di perangkat ini akan dihapus.')) return;
+  del(KS); del(KG); S = null; G = null; render();
 };
-function startAttenuation(){
- state.attenSet=shuffle(attenQuestions).slice(0,3).map(x=>({name:x[0],km:x[1],decimal:false}));
- state.attenSet.push({...shuffle(decimalQuestions)[0]&&{name:shuffle(decimalQuestions)[0][0],km:shuffle(decimalQuestions)[0][1]},decimal:true});
- // fix random decimal selection cleanly
- const d=shuffle(decimalQuestions)[0]; state.attenSet[3]={name:d[0],km:d[1],decimal:true};
- state.attenIndex=0; renderAttenuation();
-}
-function renderAttenuation(){
- const q=state.attenSet[state.attenIndex];
- $("attenProgress").textContent=`Soal ${state.attenIndex+1} dari 4`;
- $("attenQuestion").innerHTML=`<div class="question-box">
- <b>${q.decimal?"Soal Desimal":"Soal Jarak Genap"}</b>
- <h3>${q.name}</h3>
- <p>Jarak = <strong>${q.km} km</strong></p>
- <p>Koefisien atenuasi = <strong>0,35 dB/km</strong></p>
- <div class="formula">Loss = 0,35 × ${q.km} = ? dB</div>
- <div class="answer-row"><input id="attenAnswer" type="number" step="0.001" placeholder="Masukkan loss"><button class="primary" id="checkAtten">Periksa</button></div></div>`;
- $("attenFeedback").textContent="";
- $("checkAtten").onclick=()=>{
-   const val=parseFloat($("attenAnswer").value);
-   const correct=+(q.km*0.35).toFixed(3);
-   if(Math.abs(val-correct)<0.001){
-     $("attenFeedback").textContent="Benar. Lanjut ke soal berikutnya.";
-     $("attenFeedback").className="feedback good";
-     state.results.cableLoss += correct;
-     state.attenIndex++;
-     setTimeout(()=>{
-       if(state.attenIndex<4) renderAttenuation(); else {state.results.cableLoss=+(state.results.cableLoss.toFixed(3));showLevel(3)}
-     },500);
-   }else{
-     $("attenFeedback").textContent="Belum tepat. Periksa kembali satuan km dan hasil perkalian.";
-     $("attenFeedback").className="feedback bad";
-   }
- };
-}
-$("checkConnector").onclick=()=>{
- const val=parseInt($("connectorAnswer").value);
- if(val===22){
-   state.results.connectorCount=22;state.results.connectorLoss=+(22*0.25).toFixed(2);
-   $("connectorFeedback").textContent="Benar. 22 × 0,25 dB = 5,50 dB.";
-   $("connectorFeedback").className="feedback good";
-   setTimeout(()=>{showLevel(4);startSplitter()},600);
- }else{
-   $("connectorFeedback").textContent="Belum tepat. Hitung semua konektor biru pada kedua box.";
-   $("connectorFeedback").className="feedback bad";
- }
-};
-function startSplitter(){
- state.splitterQuestion=shuffle(splitterQuestions)[0];
- const q=state.splitterQuestion;
- $("splitterQuestion").innerHTML=`<div class="question-box">
- <img src="assets/olt.svg" style="width:220px;max-width:100%">
- <h3>Output OLT = ${q.olt} dBm</h3>
- <p>Splitter = <strong>${q.ratio}</strong></p>
- <p>Loss splitter = <strong>${q.loss} dB</strong></p>
- <div class="formula">Daya setelah splitter = ${q.olt} − ${q.loss} = ? dBm</div>
- <div class="answer-row"><input id="splitAnswer" type="number" step="0.01" placeholder="Masukkan dBm"><button class="primary" id="checkSplit">Periksa</button></div>
- </div>`;
- $("splitterFeedback").textContent="";
- $("checkSplit").onclick=()=>{
-   const val=parseFloat($("splitAnswer").value);
-   const correct=+(q.olt-q.loss).toFixed(2);
-   if(Math.abs(val-correct)<0.01){
-     state.results.splitterLoss=q.loss;
-     $("splitterFeedback").textContent="Benar. Lanjut ke Final Challenge.";
-     $("splitterFeedback").className="feedback good";
-     setTimeout(()=>{showLevel(5);startFinal()},600);
-   }else{
-     $("splitterFeedback").textContent="Belum tepat. Kurangi loss splitter dari output OLT.";
-     $("splitterFeedback").className="feedback bad";
-   }
- };
-}
-function startFinal(){
- const tx=7, cable=state.results.cableLoss, conn=state.results.connectorLoss, split=state.results.splitterLoss;
- const rx=+(tx-cable-conn-split).toFixed(3);state.results.rx=rx;
- $("finalData").innerHTML=[
-  ["Output OLT",tx+" dBm"],["Cable Loss",cable+" dB"],["Connector Loss",conn+" dB"],["Splitter Loss",split+" dB"]
- ].map(x=>`<div class="data-pill"><small>${x[0]}</small><strong>${x[1]}</strong></div>`).join("");
- $("finalQuestion").innerHTML=`<div class="question-box"><h3>Berapa daya yang diterima (Rx)?</h3><div class="formula">Rx = Tx − Cable − Connector − Splitter</div>
- <div class="answer-row"><input id="finalAnswer" type="number" step="0.001" placeholder="Masukkan Rx dBm"><button class="primary" id="checkFinal">Selesaikan</button></div></div>`;
- $("finalFeedback").textContent="";
- $("checkFinal").onclick=()=>{
-   const val=parseFloat($("finalAnswer").value);
-   if(Math.abs(val-rx)<0.001){
-     $("finalFeedback").textContent=`Benar. Rx = ${rx} dBm.`;
-     $("finalFeedback").className="feedback good";
-     finish();
-   }else{
-     $("finalFeedback").textContent="Belum tepat. Kurangkan semua loss dari output OLT.";
-     $("finalFeedback").className="feedback bad";
-   }
- };
-}
-function finish(){
- const name=$("studentName").value.trim()||"Belum diisi";
- // Score: base 100, deductions for extra matching attempts and incomplete/incorrect attempts are intentionally modest.
- const extra=Math.max(0,state.results.matchAttempts-1)*5;
- state.results.score=Math.max(60,100-extra);
- $("finalScore").textContent=state.results.score;
- $("resultGrid").innerHTML=[
-  ["Nama",name],["Level 1",""+state.results.matchAttempts+" percobaan"],["Level 2","4 soal selesai"],
-  ["Level 3",state.results.connectorCount+" konektor / "+state.results.connectorLoss+" dB"],
-  ["Level 4",state.splitterQuestion.ratio+" / "+state.results.splitterLoss+" dB"],
-  ["Final Rx",state.results.rx+" dBm"]
- ].map(x=>`<div class="result-item"><small>${x[0]}</small><strong>${x[1]}</strong></div>`).join("");
- $("result").classList.remove("hidden");
- document.querySelectorAll(".level").forEach(x=>x.classList.add("hidden"));
- $("levelNav").classList.add("hidden");
- $("progressText").textContent="5 / 5";$("progressBar").style.width="100%";
-}
-$("restart").onclick=()=>location.reload();
-makeMatch();updateProgress();
+render();
+})();

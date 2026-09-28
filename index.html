@@ -2,100 +2,20 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FTTH Loss Challenge</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FTTH LOSS CHALLENGE</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header class="topbar">
-  <div>
-    <div class="eyebrow">FTTH • LINK BUDGET</div>
-    <h1>FTTH Loss Challenge</h1>
+<header id="top" hidden>
+  <div class="bar">
+    <div class="brand">FTTH LOSS CHALLENGE</div>
+    <div class="who"><div><strong id="hName"></strong><br><span id="hClass"></span></div>
+      <button id="switchBtn" class="ghost" type="button">GANTI SISWA</button></div>
   </div>
-  <div class="student">
-    <label>Nama siswa</label>
-    <input id="studentName" placeholder="Ketik nama..." maxlength="40">
-  </div>
+  <ol id="prog" class="prog"></ol>
 </header>
-
-<main class="app">
-  <section class="hero card">
-    <div>
-      <span class="badge">MISSION INDIVIDU</span>
-      <h2>Ukur, hitung, dan buktikan loss.</h2>
-      <p>Selesaikan setiap level. Level berikutnya terbuka setelah jawaban benar.</p>
-    </div>
-    <div class="mission-meter">
-      <div class="meter-label"><span>Progress</span><b id="progressText">0 / 5</b></div>
-      <div class="meter"><i id="progressBar"></i></div>
-    </div>
-  </section>
-
-  <nav class="levels card" id="levelNav">
-    <button data-level="1" class="active">01<br><small>Matching</small></button>
-    <button data-level="2" disabled>02<br><small>Atenuasi</small></button>
-    <button data-level="3" disabled>03<br><small>Konektor</small></button>
-    <button data-level="4" disabled>04<br><small>Splitter</small></button>
-    <button data-level="5" disabled>05<br><small>Final</small></button>
-  </nav>
-
-  <section id="level1" class="level card">
-    <div class="level-head"><span>LEVEL 1</span><h2>Matching Jenis Loss</h2></div>
-    <p class="instruction">Cocokkan semua kartu gambar dengan besaran yang tepat. Kamu boleh mencoba berkali-kali. Sistem menghitung jumlah percobaan sampai semua pasangan benar.</p>
-    <div class="attempt-box">Percobaan saat ini: <strong id="matchAttempt">1</strong></div>
-    <div id="matchingBoard" class="matching-board"></div>
-    <div class="match-actions">
-      <button id="checkMatch" class="primary">Periksa Pasangan</button>
-      <span id="matchFeedback" class="feedback"></span>
-    </div>
-  </section>
-
-  <section id="level2" class="level card hidden">
-    <div class="level-head"><span>LEVEL 2</span><h2>Atenuasi Kabel</h2></div>
-    <p class="instruction">Kerjakan 3 soal acak dari 10 soal jarak kota dengan jarak genap, lalu 1 soal acak dari 3 soal dengan jarak desimal.</p>
-    <div class="question-progress" id="attenProgress"></div>
-    <div id="attenQuestion"></div>
-    <div id="attenFeedback" class="feedback"></div>
-  </section>
-
-  <section id="level3" class="level card hidden">
-    <div class="level-head"><span>LEVEL 3</span><h2>Hitung Konektor</h2></div>
-    <p class="instruction">Perhatikan jalur OLS → OTB → Closure → OTB → OPM. Hitung seluruh konektor biru yang terlihat pada gambar.</p>
-    <img class="diagram" src="assets/level3-konektor.png" alt="Jalur OLS OTB Closure OTB OPM">
-    <div class="answer-row">
-      <input id="connectorAnswer" type="number" min="0" placeholder="Jumlah konektor">
-      <button id="checkConnector" class="primary">Periksa</button>
-    </div>
-    <div id="connectorFeedback" class="feedback"></div>
-  </section>
-
-  <section id="level4" class="level card hidden">
-    <div class="level-head"><span>LEVEL 4</span><h2>Splitter + OLT</h2></div>
-    <p class="instruction">Kerjakan 1 soal acak dari 3 soal. Gunakan output OLT dan loss splitter yang diberikan.</p>
-    <div id="splitterQuestion"></div>
-    <div id="splitterFeedback" class="feedback"></div>
-  </section>
-
-  <section id="level5" class="level card hidden">
-    <div class="level-head"><span>FINAL CHALLENGE</span><h2>Link Budget</h2></div>
-    <p class="instruction">Gabungkan hasil level sebelumnya untuk menentukan daya terima (Rx).</p>
-    <div id="finalData" class="final-data"></div>
-    <div id="finalQuestion"></div>
-    <div id="finalFeedback" class="feedback"></div>
-  </section>
-
-  <section id="result" class="result card hidden">
-    <div class="result-head">MISSION COMPLETE</div>
-    <h2>FTTH Loss Challenge — Hasil Siswa</h2>
-    <div id="resultGrid" class="result-grid"></div>
-    <div class="result-score">
-      <span>Skor</span><strong id="finalScore">0</strong>
-    </div>
-    <p class="screenshot-note">Screenshot halaman ini sebagai bukti penilaian guru.</p>
-    <button id="restart" class="secondary">Ulangi dari awal</button>
-  </section>
-</main>
-<footer>FTTH Loss Challenge • Offline-ready • Data tersimpan di browser selama sesi</footer>
+<main id="app"></main>
 <script src="script.js"></script>
 </body>
 </html>
