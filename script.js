@@ -24,16 +24,16 @@ var PAIRS = [
 var EVEN = [['Jakarta', 'Bandung', 150], ['Bandung', 'Cirebon', 120], ['Cirebon', 'Tegal', 140], ['Semarang', 'Solo', 110], ['Solo', 'Yogyakarta', 70], ['Yogyakarta', 'Magelang', 80], ['Surabaya', 'Malang', 90], ['Malang', 'Kediri', 100], ['Jakarta', 'Cirebon', 220], ['Surabaya', 'Jember', 200]];
 var DEC = [['Jakarta', 'Bogor', 127.5], ['Bandung', 'Sumedang', 82.5], ['Semarang', 'Demak', 62.5]];
 var L4 = [{ ratio: '1:8', loss: 10.5 }, { ratio: '1:4', loss: 7.2 }, { ratio: '1:8', loss: 10.5 }];
-var STEPS = ['LEVEL 1', 'LEVEL 2', 'LEVEL 3', 'LEVEL 4', 'FINAL'];
+var STEPS = ['LEVEL 1', 'LEVEL 2', 'LEVEL 3', 'LEVEL 4'];
 
 var S = load(KS), G = null, L1 = null, busy = false;
 if (!S || !S.className || !S.fullName || S.fullName.trim().split(/\s+/).length < 2) S = null;
 if (S) { G = load(KG); if (!validGame(G)) G = newGame(); }
 
-function validGame(g) { return g && g.owner === (S && S.fullName + '|' + S.className) && g.step >= 1 && g.step <= 6 && Array.isArray(g.q) && g.q.length === 4; }
+function validGame(g) { return g && g.owner === (S && S.fullName + '|' + S.className) && g.step >= 1 && g.step <= 5 && (g.step < 5 || g.completed) && Array.isArray(g.q) && g.q.length === 4; }
 function newGame() {
   var q = shuf(EVEN).slice(0, 3).concat([rnd(DEC)]);
-  return { owner: S.fullName + '|' + S.className, step: 1, attempts: 1, matchAttempts: 0, q: q, qi: 0, cableLoss: 0, connectorCount: 0, connectorLoss: 0, l4: rnd(L4), splitterRatio: '', splitterLoss: 0, totalLoss: 0, rx: 0, score: 0, completed: false };
+  return { owner: S.fullName + '|' + S.className, step: 1, attempts: 1, matchAttempts: 0, q: q, qi: 0, cableLoss: 0, connectorCount: 0, q3i: 0, q3s: 0, connectorLoss: 0, l4: rnd(L4), splitterRatio: '', splitterLoss: 0, totalLoss: 0, rx: 0, score: 0, completed: false };
 }
 function save() { store(KG, G); }
 
@@ -47,8 +47,8 @@ function render() {
     var c = G.step > i + 1 ? 'done' : G.step === i + 1 ? 'cur' : '';
     return '<li class="' + c + '">' + (c === 'done' ? '✓ ' : '') + s + '</li>';
   }).join('');
-  window.scrollTo(0, 0);
-  [null, l1View, l2View, l3View, l4View, finalView, resultView][G.step](app);
+  window.scrollTo(0, 0); app.classList.remove('enter'); void app.offsetWidth; app.classList.add('enter');
+  [null, l1View, l2View, l3View, l4View, resultView][G.step](app);
 }
 
 function loginView(app) {
@@ -71,12 +71,12 @@ function loginView(app) {
 
 /* ---------- LEVEL 1 ---------- */
 function l1View(app) {
-  L1 = { order: shuf(PAIRS.map(function (p) { return p.id; })), torder: shuf(PAIRS.map(function (p) { return p.id; })), placed: {}, locked: {}, wrong: {}, sel: null, msg: '', cls: '' };
+  L1 = { order: shuf(PAIRS.map(function (p) { return p.id; })), torder: shuf(PAIRS.map(function (p) { return p.id; })), placed: {}, locked: {}, wrong: {}, sel: null, msg: '', cls: '', fx: { stamp: {}, shake: {} } };
   app.onkeydown = null; drawL1(app);
 }
 function pcard(id) {
   var p = PAIRS.filter(function (x) { return x.id === id; })[0], lk = L1.locked[id];
-  return '<div class="pc' + (L1.sel === id ? ' sel' : '') + (lk ? ' lk' : '') + '" data-c="' + id + '" draggable="' + !lk + '"><img src="assets/' + p.img + '" alt="' + p.label + '"><span>' + p.label + '</span></div>';
+  return '<div class="pc' + (L1.sel === id ? ' sel' : '') + (lk ? ' lk' : '') + (L1.fx.drop === id ? ' drop' : '') + (L1.fx.stamp[id] ? ' stamp' : '') + '" data-c="' + id + '" draggable="' + !lk + '"><img src="assets/' + p.img + '" alt="' + p.label + '"><span>' + p.label + '</span></div>';
 }
 function drawL1(app) {
   app = app || $('#app');
@@ -84,12 +84,12 @@ function drawL1(app) {
   var pool = L1.order.filter(function (c) { return !L1.placed[c]; });
   var tg = L1.torder.map(function (t) {
     var p = PAIRS.filter(function (x) { return x.id === t; })[0];
-    return '<div class="tgt' + (L1.wrong[t] ? ' bad' : '') + '" data-t="' + t + '"><b>' + p.val + '</b><div class="slot">' + (tOf[t] ? pcard(tOf[t]) : 'Taruh gambar di sini') + '</div></div>';
+    return '<div class="tgt' + (L1.wrong[t] ? ' bad' : '') + (L1.fx.shake[t] ? ' shake' : '') + '" data-t="' + t + '"><b>' + p.val + '</b><div class="slot">' + (tOf[t] ? pcard(tOf[t]) : 'Taruh gambar di sini') + '</div></div>';
   }).join('');
   app.innerHTML = '<div class="card"><h2>LEVEL 1 — Cocokkan Jenis Loss</h2>' +
     '<p class="sub">Seret gambar ke nilai yang sesuai. Di HP: ketuk gambar, lalu ketuk kotak nilainya.</p>' +
     '<div class="l1"><div><div class="zone" id="pool">' + (pool.length ? pool.map(pcard).join('') : '<em>Semua gambar sudah ditempatkan.</em>') + '</div></div><div>' + tg + '</div></div>' +
-    '<div class="tools"><button id="chk" type="button">PERIKSA PASANGAN</button><span class="att">Percobaan: ' + G.attempts + '</span></div>' +
+    '<div class="tools"><button id="chk" type="button">PERIKSA PASANGAN</button><span class="att' + (L1.fx.bump ? ' bump' : '') + '">Percobaan: ' + G.attempts + '</span></div>' +
     '<div class="fb ' + L1.cls + '" id="fb">' + L1.msg + '</div></div>';
   app.querySelectorAll('.pc').forEach(function (el) {
     var id = el.dataset.c; if (L1.locked[id]) return;
@@ -107,14 +107,14 @@ function drawL1(app) {
   pl.addEventListener('dragover', function (e) { e.preventDefault(); });
   pl.addEventListener('drop', function (e) { e.preventDefault(); unplace(e.dataTransfer.getData('text/plain')); });
   pl.addEventListener('click', function () { if (L1.sel) unplace(L1.sel); });
-  $('#chk').onclick = checkL1;
+  $('#chk').onclick = checkL1; L1.fx = { stamp: {}, shake: {} };
 }
 function place(c, t) {
   if (L1.locked[c]) return;
   var occ = null; for (var k in L1.placed) if (L1.placed[k] === t) occ = k;
   if (occ && L1.locked[occ]) return;
   if (occ) delete L1.placed[occ];
-  L1.placed[c] = t; L1.sel = null; L1.wrong = {}; L1.msg = ''; L1.cls = ''; drawL1();
+  L1.placed[c] = t; L1.fx.drop = c; L1.sel = null; L1.wrong = {}; L1.msg = ''; L1.cls = ''; drawL1();
 }
 function unplace(c) { if (!c || L1.locked[c]) return; delete L1.placed[c]; L1.sel = null; L1.wrong = {}; L1.msg = ''; L1.cls = ''; drawL1(); }
 function checkL1() {
@@ -123,15 +123,15 @@ function checkL1() {
   var bad = [];
   L1.order.forEach(function (c) {
     if (L1.locked[c]) return;
-    if (L1.placed[c] === c) L1.locked[c] = true; else { bad.push(L1.placed[c]); delete L1.placed[c]; }
+    if (L1.placed[c] === c) { L1.locked[c] = true; L1.fx.stamp[c] = 1; } else { bad.push(L1.placed[c]); delete L1.placed[c]; }
   });
   L1.sel = null;
   if (!bad.length) {
     G.matchAttempts = G.attempts; G.step = 2; save(); busy = true;
-    L1.msg = '✓ Semua pasangan benar dalam ' + G.attempts + ' percobaan.'; L1.cls = 'ok'; drawL1();
+    L1.msg = '✓ Semua pasangan benar dalam ' + G.attempts + ' percobaan.'; L1.cls = 'ok'; drawL1(); confetti(50);
     setTimeout(render, 1600);
   } else {
-    G.attempts++; save(); bad.forEach(function (t) { L1.wrong[t] = true; });
+    G.attempts++; save(); L1.fx.bump = true; bad.forEach(function (t) { L1.wrong[t] = true; L1.fx.shake[t] = true; });
     L1.msg = '✗ Ada pasangan yang belum tepat (kotak merah). Perbaiki lalu periksa lagi.'; L1.cls = 'bad'; drawL1();
   }
 }
@@ -144,8 +144,8 @@ function bindAnswer(exp, okMsg, badMsg, next) {
     var v = num(inp.value);
     if (isNaN(v)) { fb.className = 'fb bad'; fb.textContent = 'Masukkan angka terlebih dahulu.'; return; }
     if (Math.abs(v - exp) <= 0.001) {
-      fb.className = 'fb ok'; fb.textContent = '✓ ' + okMsg; busy = true; btn.disabled = inp.disabled = true; setTimeout(next, 1200);
-    } else { fb.className = 'fb bad'; fb.textContent = '✗ ' + badMsg; }
+      fb.className = 'fb ok'; fb.textContent = '✓ ' + okMsg; busy = true; btn.disabled = inp.disabled = true; inp.classList.add('okin'); confetti(18); setTimeout(next, 1200);
+    } else { fb.className = 'fb bad'; fb.textContent = '✗ ' + badMsg; fx(fb, 'shake'); fx(inp, 'shake'); }
   };
   btn.onclick = go; inp.onkeydown = function (e) { if (e.key === 'Enter') go(); }; inp.focus();
 }
@@ -164,12 +164,21 @@ function l2View(app) {
 }
 
 /* ---------- LEVEL 3 ---------- */
+var L3 = [{ img: 'level3-konektor.png', n: 2 }, { img: '32.png', n: 4 }, { img: '33.png', n: 6 }];
 function l3View(app) {
-  app.innerHTML = '<div class="card lvl3"><h2>LEVEL 3 — HITUNG KONEKTOR</h2><p class="sub">Perhatikan gambar berikut. Hitung seluruh konektor biru yang terlihat pada jalur tersebut.</p>' +
-    '<img src="assets/level3-konektor.png" alt="Jalur OLS - OTB - Closure - OTB - OPM"><p>Berapa jumlah konektor?</p>' + ansRow('buah') + '</div>';
-  bindAnswer(22, 'Benar! Jumlah konektor = 22. Connector loss = 22 × 0,25 = 5,5 dB.', 'Belum tepat. Hitung seluruh konektor biru pada kedua box.', function () {
-    G.connectorCount = 22; G.connectorLoss = 5.5; G.step = 4; save(); render();
-  });
+  var i = G.q3i | 0, q = L3[i], loss = r3(q.n * CONN), st = G.q3s | 0;
+  var body = st
+    ? '<div class="facts"><div class="fact"><small>Jumlah konektor</small><b>' + q.n + '</b></div><div class="fact"><small>Loss per konektor</small><b>0,25 dB</b></div></div><div class="formula">Loss = jumlah konektor × 0,25 dB</div><p>Berapa total loss konektor (dB)?</p>' + ansRow('dB')
+    : '<img src="assets/' + q.img + '" alt="Soal konektor ' + (i + 1) + '"><p>Berapa jumlah konektor (1 core)?</p>' + ansRow('buah');
+  app.innerHTML = '<div class="card lvl3"><h2>LEVEL 3 — HITUNG KONEKTOR</h2><p class="sub">Soal ' + (i + 1) + ' dari ' + L3.length + ' · ' + (st ? 'Langkah 2: hitung total loss.' : 'Langkah 1: hitung seluruh konektor biru untuk <b>1 core</b> saja.') + '</p>' + body + '</div>';
+  if (!st) {
+    bindAnswer(q.n, 'Benar! Jumlah konektor = ' + q.n + '.', 'Belum tepat. Hitung konektor biru untuk 1 core saja.', function () { G.q3s = 1; save(); render(); });
+  } else {
+    bindAnswer(loss, 'Benar! Loss = ' + q.n + ' × 0,25 = ' + fmt(loss) + ' dB.', 'Belum tepat. Kalikan jumlah konektor dengan 0,25 dB.', function () {
+      G.connectorCount = (G.connectorCount | 0) + q.n; G.connectorLoss = r3((G.connectorLoss || 0) + loss); G.q3i = i + 1; G.q3s = 0;
+      if (G.q3i >= L3.length) G.step = 4; save(); render();
+    });
+  }
 }
 
 /* ---------- LEVEL 4 ---------- */
@@ -179,18 +188,7 @@ function l4View(app) {
     '<div class="facts"><div class="fact"><small>Output OLT</small><b>+7 dBm</b></div><div class="fact"><small>Splitter</small><b>' + q.ratio + '</b></div><div class="fact"><small>Splitter loss</small><b>' + fmt(q.loss, 1) + ' dB</b></div></div>' +
     '<div class="formula">Power after splitter = Output OLT − Splitter Loss</div><p>Berapa daya setelah melewati splitter?</p>' + ansRow('dBm') + '</div>';
   bindAnswer(exp, 'Benar! Daya setelah splitter = ' + fmt(exp, 1) + ' dBm.', 'Belum tepat. Kurangi Output OLT dengan splitter loss.', function () {
-    G.splitterRatio = q.ratio; G.splitterLoss = q.loss; G.step = 5; save(); render();
-  });
-}
-
-/* ---------- FINAL ---------- */
-function finalView(app) {
-  var total = r3(G.cableLoss + G.connectorLoss + G.splitterLoss), rx = r3(TX - total);
-  app.innerHTML = '<div class="card"><h2>FINAL CHALLENGE — LINK BUDGET</h2><p class="sub">Gunakan data yang sudah kamu peroleh.</p>' +
-    '<div class="facts"><div class="fact"><small>Output OLT</small><b>+7 dBm</b></div><div class="fact"><small>Cable Loss</small><b>' + fmt(G.cableLoss, 3) + ' dB</b></div><div class="fact"><small>Connector Loss</small><b>' + fmt(G.connectorLoss) + ' dB</b></div><div class="fact"><small>Splitter Loss</small><b>' + fmt(G.splitterLoss, 1) + ' dB</b></div></div>' +
-    '<div class="formula">Total Loss = Cable + Connector + Splitter<br>Rx = Tx − Total Loss</div><p>Berapa daya yang diterima (Rx)?</p>' + ansRow('dBm') + '</div>';
-  bindAnswer(rx, 'MISSION COMPLETE!', 'Belum tepat. Jumlahkan semua loss, lalu kurangkan dari +7 dBm.', function () {
-    G.totalLoss = total; G.rx = rx; G.score = Math.max(60, 100 - 5 * (G.matchAttempts - 1)); G.completed = true; G.step = 6; save(); render();
+    G.splitterRatio = q.ratio; G.splitterLoss = q.loss; G.score = Math.max(60, 100 - 5 * (G.matchAttempts - 1)); G.completed = true; G.step = 5; save(); render();
   });
 }
 
@@ -200,11 +198,25 @@ function resultView(app) {
   app.innerHTML = '<div class="card res"><div class="sub">FTTH LOSS CHALLENGE — HASIL SISWA</div><h1>MISSION COMPLETE</h1><div class="grid">' +
     cell('Kelas', esc(S.className)) + cell('Nama', esc(S.fullName)) +
     cell('Level 1', G.matchAttempts + ' percobaan') + cell('Level 2', '4 soal selesai<br>Cable Loss: ' + fmt(G.cableLoss, 3) + ' dB') +
-    cell('Level 3', G.connectorCount + ' konektor<br>Connector Loss: ' + fmt(G.connectorLoss) + ' dB') + cell('Level 4', 'Splitter ' + G.splitterRatio + '<br>Splitter Loss: ' + fmt(G.splitterLoss) + ' dB') +
-    cell('FINAL', 'Total Loss: ' + fmt(G.totalLoss, 3) + ' dB &nbsp; | &nbsp; Rx: ' + fmt(G.rx, 3) + ' dBm', true) + '</div>' +
-    '<div class="score">SKOR: ' + G.score + ' / 100</div><div class="note">Screenshot halaman ini untuk dikumpulkan kepada guru.</div></div>';
+    cell('Level 3', G.connectorCount + ' konektor (3 soal)<br>Connector Loss: ' + fmt(G.connectorLoss) + ' dB') + cell('Level 4', 'Splitter ' + G.splitterRatio + '<br>Splitter Loss: ' + fmt(G.splitterLoss) + ' dB') +
+    '</div>' +
+    '<div class="score">SKOR: <span id="sc">0</span> / 100</div><div class="note">Screenshot halaman ini untuk dikumpulkan kepada guru.</div></div>';
+  countUp($('#sc'), G.score); setTimeout(function () { confetti(90); }, 600);
 }
 
+function fx(el, c) { el.classList.remove(c); void el.offsetWidth; el.classList.add(c); }
+function countUp(el, to) { var t0 = performance.now(); (function f(t) { var k = Math.min(1, (t - t0) / 1000); el.textContent = Math.round(to * k); if (k < 1) requestAnimationFrame(f); })(t0); }
+function confetti(n) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var box = document.createElement('div'); box.className = 'confetti';
+  var cols = ['#1d5fd1', '#12805c', '#f5a300', '#0b2545', '#6ea2f5'];
+  for (var i = 0; i < n; i++) {
+    var p = document.createElement('i');
+    p.style.cssText = 'left:' + Math.random() * 100 + '%;background:' + rnd(cols) + ';--dx:' + (Math.random() * 200 - 100) + 'px;--r:' + (Math.random() * 720 - 360) + 'deg;animation-duration:' + (1.6 + Math.random() * 1.4) + 's;animation-delay:' + Math.random() * .3 + 's';
+    box.appendChild(p);
+  }
+  document.body.appendChild(box); setTimeout(function () { box.remove(); }, 3600);
+}
 $('#switchBtn').onclick = function () {
   if (!confirm('Ganti siswa? Data login dan progres di perangkat ini akan dihapus.')) return;
   del(KS); del(KG); S = null; G = null; render();
