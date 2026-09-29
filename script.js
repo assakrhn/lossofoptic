@@ -1,6 +1,6 @@
 (function () {
 'use strict';
-var KS = 'ftthLossChallengeStudent', KG = 'ftthLossChallengeGame', KA = 'ftthLossChallengeAccountCount';
+var KS = 'ftthLossChallengeStudent', KG = 'ftthLossChallengeGame', KH = 'ftthLossChallengeHistory';
 var ATT = 0.35, CONN = 0.25, TX = 7;
 var $ = function (s) { return document.querySelector(s); };
 var rnd = function (a) { return a[Math.floor(Math.random() * a.length)]; };
@@ -37,8 +37,19 @@ function newGame() {
 }
 function save() { store(KG, G); }
 
+function ownerKey(st) { return st.className + '|' + st.fullName; }
+function archive() {
+  if (!S) return;
+  var h = load(KH) || [], key = ownerKey(S), idx = -1;
+  h.forEach(function (e, i) { if (e.key === key) idx = i; });
+  var entry = { key: key, className: S.className, fullName: S.fullName, loginAt: S.loginAt, updatedAt: new Date().toISOString(), completed: !!(G && G.completed), score: G ? G.score : 0 };
+  if (idx >= 0) h[idx] = entry; else h.push(entry);
+  store(KH, h);
+}
+
 function render() {
   busy = false;
+  if (S && G) archive();
   var top = $('#top'), app = $('#app');
   if (!S) { top.hidden = true; return loginView(app); }
   top.hidden = false;
@@ -63,7 +74,7 @@ function loginView(app) {
     if (!n) return fb.textContent = 'Nama lengkap wajib diisi.';
     if (n.split(' ').length < 2) return fb.textContent = 'Tulis nama lengkap (minimal 2 kata).';
     S = { className: c, fullName: n, loginAt: new Date().toISOString() };
-    store(KS, S); store(KA, (load(KA) | 0) + 1); G = newGame(); save(); render();
+    store(KS, S); G = newGame(); save(); render();
   };
   $('#go').onclick = go;
   app.onkeydown = function (e) { if (e.key === 'Enter') go(); };
@@ -217,7 +228,7 @@ function resultView(app) {
     cell('Kelas', esc(S.className)) + cell('Nama', esc(S.fullName)) +
     cell('Level 1', G.matchAttempts + ' percobaan') + cell('Level 2', '4 soal selesai<br>Cable Loss: ' + fmt(G.cableLoss, 3) + ' dB') +
     cell('Level 3', G.connectorCount + ' konektor (3 soal)<br>Connector Loss: ' + fmt(G.connectorLoss) + ' dB') + cell('Level 4', 'Splitter ' + G.splitterRatio + '<br>Splitter Loss: ' + fmt(G.splitterLoss) + ' dB') +
-    cell('Akun dibuat di perangkat ini', (load(KA) | 0) + ' kali', true) +
+    cell('Data tersimpan di perangkat ini', ((load(KH) || []).length) + ' akun', true) +
     '</div>' +
     '<div class="score">SKOR: <span id="sc">0</span> / 100</div><div class="note">Screenshot halaman ini untuk dikumpulkan kepada guru.</div></div>';
   countUp($('#sc'), G.score); setTimeout(function () { confetti(90); }, 600);
@@ -237,7 +248,7 @@ function confetti(n) {
   document.body.appendChild(box); setTimeout(function () { box.remove(); }, 3600);
 }
 $('#switchBtn').onclick = function () {
-  if (!confirm('Ganti siswa? Data login dan progres di perangkat ini akan dihapus.')) return;
+  if (!confirm('Ganti siswa? Sesi login saat ini akan ditutup. Data dan progres tetap tersimpan offline di perangkat ini.')) return;
   del(KS); del(KG); S = null; G = null; render();
 };
 render();
