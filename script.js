@@ -1,6 +1,6 @@
 (function () {
 'use strict';
-var KS = 'ftthLossChallengeStudent', KG = 'ftthLossChallengeGame';
+var KS = 'ftthLossChallengeStudent', KG = 'ftthLossChallengeGame', KA = 'ftthLossChallengeAccountCount';
 var ATT = 0.35, CONN = 0.25, TX = 7;
 var $ = function (s) { return document.querySelector(s); };
 var rnd = function (a) { return a[Math.floor(Math.random() * a.length)]; };
@@ -63,7 +63,7 @@ function loginView(app) {
     if (!n) return fb.textContent = 'Nama lengkap wajib diisi.';
     if (n.split(' ').length < 2) return fb.textContent = 'Tulis nama lengkap (minimal 2 kata).';
     S = { className: c, fullName: n, loginAt: new Date().toISOString() };
-    store(KS, S); G = newGame(); save(); render();
+    store(KS, S); store(KA, (load(KA) | 0) + 1); G = newGame(); save(); render();
   };
   $('#go').onclick = go;
   app.onkeydown = function (e) { if (e.key === 'Enter') go(); };
@@ -170,11 +170,16 @@ function l3View(app) {
   var dots = L3.map(function (x, k) { return '<li class="' + (k < i ? 'done' : k === i ? 'cur' : '') + '">' + (k < i ? '✓ ' : '') + 'Soal ' + (k + 1) + '</li>'; }).join('');
   app.innerHTML = '<div class="card lvl3"><h2>LEVEL 3 — HITUNG KONEKTOR</h2><ol class="qprog">' + dots + '</ol>' +
     '<p class="sub">Soal ' + (i + 1) + ' dari ' + L3.length + ' · Hitung seluruh konektor biru untuk <b>1 core</b> saja, lalu hitung total loss-nya (loss per konektor = 0,25 dB).</p>' +
-    '<img src="assets/' + q.img + '" alt="Soal konektor ' + (i + 1) + '">' +
+    '<img id="q3img" alt="Soal konektor ' + (i + 1) + '">' +
     '<div class="two"><div><label for="ans">Jumlah konektor</label><input id="ans" inputmode="numeric" autocomplete="off" placeholder="buah"></div>' +
     '<div><label for="ans2">Total loss</label><input id="ans2" inputmode="decimal" autocomplete="off" placeholder="dB"></div></div>' +
     '<button id="chk" type="button">PERIKSA</button><div class="fb" id="fb"></div></div>';
   var a = $('#ans'), b = $('#ans2'), fb = $('#fb'), btn = $('#chk');
+  var im = $('#q3img'), base = q.img.replace(/\.png$/, ''), k = 0;
+  var v = '?v=' + Date.now();
+  var cands = ['assets/' + q.img + v, q.img + v, 'assets/' + base + '.PNG' + v, base + '.PNG' + v, 'assets/' + base + '.jpg' + v, base + '.jpg' + v, 'assets/' + base + '.jpeg' + v];
+  im.onerror = function () { k++; if (k < cands.length) im.src = cands[k]; else { im.onerror = null; im.alt = 'Gambar ' + q.img + ' tidak ditemukan. Periksa nama dan lokasi file di folder assets/.'; } };
+  im.src = cands[0];
   var go = function () {
     if (busy) return;
     var v1 = num(a.value), v2 = num(b.value);
@@ -212,6 +217,7 @@ function resultView(app) {
     cell('Kelas', esc(S.className)) + cell('Nama', esc(S.fullName)) +
     cell('Level 1', G.matchAttempts + ' percobaan') + cell('Level 2', '4 soal selesai<br>Cable Loss: ' + fmt(G.cableLoss, 3) + ' dB') +
     cell('Level 3', G.connectorCount + ' konektor (3 soal)<br>Connector Loss: ' + fmt(G.connectorLoss) + ' dB') + cell('Level 4', 'Splitter ' + G.splitterRatio + '<br>Splitter Loss: ' + fmt(G.splitterLoss) + ' dB') +
+    cell('Akun dibuat di perangkat ini', (load(KA) | 0) + ' kali', true) +
     '</div>' +
     '<div class="score">SKOR: <span id="sc">0</span> / 100</div><div class="note">Screenshot halaman ini untuk dikumpulkan kepada guru.</div></div>';
   countUp($('#sc'), G.score); setTimeout(function () { confetti(90); }, 600);
