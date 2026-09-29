@@ -33,7 +33,7 @@ if (S) { G = load(KG); if (!validGame(G)) G = newGame(); }
 function validGame(g) { return g && g.owner === (S && S.fullName + '|' + S.className) && g.step >= 1 && g.step <= 5 && (g.step < 5 || g.completed) && Array.isArray(g.q) && g.q.length === 4; }
 function newGame() {
   var q = shuf(EVEN).slice(0, 3).concat([rnd(DEC)]);
-  return { owner: S.fullName + '|' + S.className, step: 1, attempts: 1, matchAttempts: 0, q: q, qi: 0, cableLoss: 0, connectorCount: 0, q3i: 0, q3s: 0, connectorLoss: 0, l4: rnd(L4), splitterRatio: '', splitterLoss: 0, totalLoss: 0, rx: 0, score: 0, completed: false };
+  return { owner: S.fullName + '|' + S.className, step: 1, attempts: 1, matchAttempts: 0, q: q, qi: 0, cableLoss: 0, connectorCount: 0, q3i: 0, q3s: 0, connectorLoss: 0, l4: rnd(L4), splitterRatio: '', splitterLoss: 0, l4Attempts: 1, totalLoss: 0, rx: 0, score: 0, completed: false };
 }
 function save() { store(KG, G); }
 
@@ -204,14 +204,34 @@ function l3View(app) {
 }
 
 /* ---------- LEVEL 4 ---------- */
+var l4Sign = '-';
 function l4View(app) {
   var q = G.l4, exp = r3(TX - q.loss);
   app.innerHTML = '<div class="card"><h2>LEVEL 4 — SPLITTER + OLT</h2><p class="sub">Hitung daya setelah melewati splitter.</p>' +
     '<div class="facts"><div class="fact"><small>Output OLT</small><b>+7 dBm</b></div><div class="fact"><small>Splitter</small><b>' + q.ratio + '</b></div></div>' +
-    '<div class="formula">Power after splitter = Output OLT − Splitter Loss</div><p>Berapa daya setelah melewati splitter? (gunakan nilai loss splitter ' + q.ratio + ' yang sudah kamu pelajari di Level 1)</p>' + ansRow('dBm') + '</div>';
-  bindAnswer(exp, 'Benar! Daya setelah splitter = ' + fmt(exp, 1) + ' dBm.', 'Belum tepat. Kurangi Output OLT dengan splitter loss.', function () {
-    G.splitterRatio = q.ratio; G.splitterLoss = q.loss; G.score = Math.max(60, 100 - 5 * (G.matchAttempts - 1)); G.completed = true; G.step = 5; save(); render();
-  });
+    '<div class="formula">Power after splitter = Output OLT − Splitter Loss</div><p>Berapa daya setelah melewati splitter? (gunakan nilai loss splitter ' + q.ratio + ' yang sudah kamu pelajari di Level 1)</p>' +
+    '<label>Tanda</label><div class="sign" id="signBox"><button type="button" class="signbtn' + (l4Sign === '+' ? ' on' : '') + '" data-sg="+">+</button><button type="button" class="signbtn' + (l4Sign === '-' ? ' on' : '') + '" data-sg="-">−</button></div>' +
+    '<div class="row"><input id="ans" inputmode="decimal" autocomplete="off" placeholder="Angka (dBm), contoh: 3,5"><button id="chk" type="button">PERIKSA</button></div>' +
+    '<div class="tools"><span class="att">Percobaan: ' + G.l4Attempts + '</span></div><div class="fb" id="fb"></div></div>';
+  app.querySelectorAll('.signbtn').forEach(function (b) { b.onclick = function () { l4Sign = b.dataset.sg; app.querySelectorAll('.signbtn').forEach(function (x) { x.classList.toggle('on', x === b); }); }; });
+  var inp = $('#ans'), fb = $('#fb'), btn = $('#chk');
+  var go = function () {
+    if (busy) return;
+    var mag = num(inp.value);
+    if (isNaN(mag) || mag < 0) { fb.className = 'fb bad'; fb.textContent = '✗ Masukkan angka (tanpa tanda), lalu pilih + atau −.'; return; }
+    var v = l4Sign === '-' ? -mag : mag;
+    if (Math.abs(v - exp) <= 0.001) {
+      fb.className = 'fb ok'; fb.textContent = '✓ Benar! Daya setelah splitter = ' + fmt(exp, 1) + ' dBm.'; busy = true; btn.disabled = inp.disabled = true;
+      setTimeout(function () {
+        G.splitterRatio = q.ratio; G.splitterLoss = q.loss; G.score = Math.max(60, 100 - 5 * (G.matchAttempts - 1)); G.completed = true; G.step = 5; save(); render();
+      }, 1200);
+    } else {
+      G.l4Attempts++; save();
+      fb.className = 'fb bad'; fb.textContent = '✗ Belum tepat. Kurangi Output OLT dengan splitter loss, lalu tentukan tandanya.'; fx(fb, 'shake'); fx(inp, 'shake');
+      var el = app.querySelector('.att'); if (el) fx(el, 'bump');
+    }
+  };
+  btn.onclick = go; inp.onkeydown = function (e) { if (e.key === 'Enter') go(); }; inp.focus();
 }
 
 /* ---------- RESULT ---------- */
@@ -220,7 +240,7 @@ function resultView(app) {
   app.innerHTML = '<div class="card res"><div class="sub">FTTH LOSS CHALLENGE — HASIL SISWA</div><h1>MISSION COMPLETE</h1><div class="grid">' +
     cell('Kelas', esc(S.className)) + cell('Nama', esc(S.fullName)) +
     cell('Level 1', G.matchAttempts + ' percobaan') + cell('Level 2', '4 soal selesai<br>Cable Loss: ' + fmt(G.cableLoss, 3) + ' dB') +
-    cell('Level 3', G.connectorCount + ' konektor (3 soal)<br>Connector Loss: ' + fmt(G.connectorLoss) + ' dB') + cell('Level 4', 'Splitter ' + G.splitterRatio + '<br>Splitter Loss: ' + fmt(G.splitterLoss) + ' dB') +
+    cell('Level 3', G.connectorCount + ' konektor (3 soal)<br>Connector Loss: ' + fmt(G.connectorLoss) + ' dB') + cell('Level 4', 'Splitter ' + G.splitterRatio + '<br>Splitter Loss: ' + fmt(G.splitterLoss) + ' dB<br>Percobaan: ' + G.l4Attempts) +
     cell('Data tersimpan di perangkat ini', ((load(KH) || []).length) + ' akun', true) +
     '</div>' +
     '<div class="score">SKOR: <span id="sc">0</span> / 100</div><div class="note">Screenshot halaman ini untuk dikumpulkan kepada guru.</div></div>';
