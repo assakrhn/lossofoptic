@@ -87,7 +87,7 @@ function l1View(app) {
 }
 function pcard(id) {
   var p = PAIRS.filter(function (x) { return x.id === id; })[0], lk = L1.locked[id];
-  return '<div class="pc' + (L1.sel === id ? ' sel' : '') + (lk ? ' lk' : '') + (L1.fx.drop === id ? ' drop' : '') + (L1.fx.stamp[id] ? ' stamp' : '') + '" data-c="' + id + '" draggable="' + !lk + '"><img src="assets/' + p.img + '" alt="' + p.label + '"><span>' + p.label + '</span></div>';
+  return '<div class="pc' + (L1.sel === id ? ' sel' : '') + (lk ? ' lk' : '') + (L1.fx.drop === id ? ' drop' : '') + (L1.fx.stamp[id] ? ' stamp' : '') + '" data-c="' + id + '"><img src="assets/' + p.img + '" alt="' + p.label + '"><span>' + p.label + '</span></div>';
 }
 function drawL1(app) {
   app = app || $('#app');
@@ -98,26 +98,19 @@ function drawL1(app) {
     return '<div class="tgt' + (L1.wrong[t] ? ' bad' : '') + (L1.fx.shake[t] ? ' shake' : '') + '" data-t="' + t + '"><b>' + p.val + '</b><div class="slot">' + (tOf[t] ? pcard(tOf[t]) : 'Taruh gambar di sini') + '</div></div>';
   }).join('');
   app.innerHTML = '<div class="card"><h2>LEVEL 1 — Cocokkan Jenis Loss</h2>' +
-    '<p class="sub">Seret gambar ke nilai yang sesuai. Di HP: ketuk gambar, lalu ketuk kotak nilainya.</p>' +
+    '<p class="sub">Ketuk/klik gambar untuk memilih (akan tersorot), lalu ketuk/klik kotak nilai tujuannya.</p>' +
     '<div class="l1"><div><div class="zone" id="pool">' + (pool.length ? pool.map(pcard).join('') : '<em>Semua gambar sudah ditempatkan.</em>') + '</div></div><div>' + tg + '</div></div>' +
     '<div class="tools"><button id="chk" type="button">PERIKSA PASANGAN</button><span class="att' + (L1.fx.bump ? ' bump' : '') + '">Percobaan: ' + G.attempts + '</span></div>' +
     '<div class="fb ' + L1.cls + '" id="fb">' + L1.msg + '</div></div>';
   app.querySelectorAll('.pc').forEach(function (el) {
     var id = el.dataset.c; if (L1.locked[id]) return;
-    el.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text/plain', id); e.dataTransfer.effectAllowed = 'move'; });
     el.addEventListener('click', function (e) { e.stopPropagation(); L1.sel = L1.sel === id ? null : id; drawL1(); });
   });
   app.querySelectorAll('.tgt').forEach(function (el) {
     var t = el.dataset.t;
-    el.addEventListener('dragover', function (e) { e.preventDefault(); el.classList.add('over'); });
-    el.addEventListener('dragleave', function () { el.classList.remove('over'); });
-    el.addEventListener('drop', function (e) { e.preventDefault(); var id = e.dataTransfer.getData('text/plain'); if (id) place(id, t); });
     el.addEventListener('click', function () { if (L1.sel) place(L1.sel, t); });
   });
-  var pl = $('#pool');
-  pl.addEventListener('dragover', function (e) { e.preventDefault(); });
-  pl.addEventListener('drop', function (e) { e.preventDefault(); unplace(e.dataTransfer.getData('text/plain')); });
-  pl.addEventListener('click', function () { if (L1.sel) unplace(L1.sel); });
+  $('#pool').addEventListener('click', function () { if (L1.sel) unplace(L1.sel); });
   $('#chk').onclick = checkL1; L1.fx = { stamp: {}, shake: {} };
 }
 function place(c, t) {
@@ -214,8 +207,8 @@ function l3View(app) {
 function l4View(app) {
   var q = G.l4, exp = r3(TX - q.loss);
   app.innerHTML = '<div class="card"><h2>LEVEL 4 — SPLITTER + OLT</h2><p class="sub">Hitung daya setelah melewati splitter.</p>' +
-    '<div class="facts"><div class="fact"><small>Output OLT</small><b>+7 dBm</b></div><div class="fact"><small>Splitter</small><b>' + q.ratio + '</b></div><div class="fact"><small>Splitter loss</small><b>' + fmt(q.loss, 1) + ' dB</b></div></div>' +
-    '<div class="formula">Power after splitter = Output OLT − Splitter Loss</div><p>Berapa daya setelah melewati splitter?</p>' + ansRow('dBm') + '</div>';
+    '<div class="facts"><div class="fact"><small>Output OLT</small><b>+7 dBm</b></div><div class="fact"><small>Splitter</small><b>' + q.ratio + '</b></div></div>' +
+    '<div class="formula">Power after splitter = Output OLT − Splitter Loss</div><p>Berapa daya setelah melewati splitter? (gunakan nilai loss splitter ' + q.ratio + ' yang sudah kamu pelajari di Level 1)</p>' + ansRow('dBm') + '</div>';
   bindAnswer(exp, 'Benar! Daya setelah splitter = ' + fmt(exp, 1) + ' dBm.', 'Belum tepat. Kurangi Output OLT dengan splitter loss.', function () {
     G.splitterRatio = q.ratio; G.splitterLoss = q.loss; G.score = Math.max(60, 100 - 5 * (G.matchAttempts - 1)); G.completed = true; G.step = 5; save(); render();
   });
